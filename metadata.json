@@ -1,0 +1,5 @@
+{
+  "name": "Attendance admin page",
+  "description": "A React application integrated with Supabase for backend services.",
+  "requestFramePermissions": []
+}
