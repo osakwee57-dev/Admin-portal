@@ -1,5 +1,5 @@
 {
-  "name": "Attendance admin page",
-  "description": "A React application integrated with Supabase for backend services.",
+  "name": "Admin Attendance Dashboard",
+  "description": "A professional PWA dashboard for managing student attendance, sessions, and logs with Supabase integration.",
   "requestFramePermissions": []
 }

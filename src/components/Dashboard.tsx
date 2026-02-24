@@ -73,6 +73,8 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
   const [view, setView] = useState<'users' | 'sessions' | 'history' | 'logs'>('users');
   const [filterDept, setFilterDept] = useState('All');
   const [filterLevel, setFilterLevel] = useState('All');
+  const [histDept, setHistDept] = useState('All');
+  const [histLevel, setHistLevel] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -128,11 +130,11 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
   };
 
   const resetPassword = async (matric: string, name: string) => {
-    const newPass = prompt(`Enter new password for ${name}:`, "123456");
-    if (newPass) {
+    const newPass = prompt(`Enter new password for ${name}:`); 
+    if (newPass && newPass.trim() !== "") {
       const { error } = await supabase.from('users').update({ password: newPass }).eq('matric_number', matric);
       if (!error) {
-        alert("Password updated successfully!");
+        alert(`Password for ${name} has been updated to: ${newPass}`);
       } else {
         alert("Error updating password: " + error.message);
       }
@@ -216,6 +218,7 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
         id,
         signed_at,
         student_matric,
+        signature_data,
         users (full_name)
       `)
       .eq('session_id', session.id)
@@ -246,6 +249,11 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
     // Only return 'true' if the student meets all conditions
     return deptMatch && levelMatch && notAdmin && searchMatch; 
   });
+
+  const filteredHistory = history.filter(s => 
+    (histDept === 'All' || s.department === histDept) && 
+    (histLevel === 'All' || (s.target_level || s.level) === histLevel)
+  );
 
   const downloadPDF = (session?: Session, attendees?: any[]) => {
     const doc = new jsPDF();
@@ -636,6 +644,42 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                 </h2>
               </div>
 
+              {!selectedSession && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+                  <div className="flex flex-col md:flex-row gap-4 items-end">
+                    <div className="space-y-2 flex-1">
+                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Department</label>
+                      <div className="relative">
+                        <select 
+                          value={histDept}
+                          onChange={(e) => setHistDept(e.target.value)}
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl py-2.5 pl-4 pr-10 text-zinc-100 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
+                        >
+                          <option value="All">All Departments</option>
+                          {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 w-full md:w-48">
+                      <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider ml-1">Level</label>
+                      <div className="relative">
+                        <select 
+                          value={histLevel}
+                          onChange={(e) => setHistLevel(e.target.value)}
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl py-2.5 pl-4 pr-10 text-zinc-100 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
+                        >
+                          <option value="All">All Levels</option>
+                          {levels.map(l => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {!selectedSession ? (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                   <div className="overflow-x-auto">
@@ -648,8 +692,8 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-800">
-                        {history.length > 0 ? (
-                          history.map((s) => (
+                        {filteredHistory.length > 0 ? (
+                          filteredHistory.map((s) => (
                             <tr 
                               key={s.id} 
                               onClick={() => viewSessionDetails(s)}
@@ -666,7 +710,7 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={3} className="p-12 text-center text-zinc-500">No session history found.</td>
+                            <td colSpan={3} className="p-12 text-center text-zinc-500">No session history found matching filters.</td>
                           </tr>
                         )}
                       </tbody>
@@ -695,8 +739,9 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                             <tr className="bg-zinc-800/50 border-bottom border-zinc-800">
                               <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">S/N</th>
                               <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Full Name</th>
-                              <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Matric Number</th>
-                              <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Time Signed</th>
+                              <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Matric</th>
+                              <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Signature</th>
+                              <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Time</th>
                               <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Status</th>
                             </tr>
                           </thead>
@@ -707,6 +752,17 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                                   <td className="p-4 text-zinc-400 text-sm">{index + 1}</td>
                                   <td className="p-4 font-medium text-zinc-200">{attendee.users?.full_name || 'N/A'}</td>
                                   <td className="p-4 text-zinc-400 font-mono text-sm">{attendee.student_matric}</td>
+                                  <td className="p-4">
+                                    {attendee.signature_data ? (
+                                      <img 
+                                        src={attendee.signature_data} 
+                                        alt="sig" 
+                                        className="h-8 object-contain filter contrast-125 brightness-110" 
+                                      />
+                                    ) : (
+                                      <span className="text-[10px] text-zinc-600 italic">No sig</span>
+                                    )}
+                                  </td>
                                   <td className="p-4 text-zinc-400 text-sm">{new Date(attendee.signed_at).toLocaleTimeString()}</td>
                                   <td className="p-4">
                                     <span className="text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">✅ Present</span>
