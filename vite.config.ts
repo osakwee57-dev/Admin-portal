@@ -12,7 +12,7 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg', 'icon.svg'],
         manifest: {
           name: 'Admin Attendance Dashboard',
           short_name: 'Attendance',
@@ -20,14 +20,9 @@ export default defineConfig(({mode}) => {
           theme_color: '#10b981',
           icons: [
             {
-              src: 'icon.png',
-              sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: 'icon.png',
-              sizes: '512x512',
-              type: 'image/png'
+              src: 'icon.svg',
+              sizes: 'any',
+              type: 'image/svg+xml'
             }
           ]
         }
