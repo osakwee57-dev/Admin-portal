@@ -259,36 +259,56 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
     const doc = new jsPDF();
     
     if (session && attendees) {
-      // Session Specific Report
-      doc.setFontSize(18);
+      // Session Specific Report with Signatures
+      doc.setFontSize(16);
       doc.setTextColor(20, 20, 20);
-      doc.text(`ATTENDANCE REPORT: ${session.course_code}`, 14, 20);
+      doc.text(`OFFICIAL ATTENDANCE: ${session.course_code}`, 14, 20);
       
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
-      
-      doc.setFontSize(11);
-      doc.setTextColor(40, 40, 40);
-      doc.text(`Target Level: ${session.target_level || session.level}`, 14, 38);
-      doc.text(`HOC Matric: ${session.hoc_matric || 'N/A'}`, 14, 44);
-      doc.text(`Date Conducted: ${new Date(session.created_at).toLocaleDateString()}`, 14, 50);
+      doc.text(`Department: ${session.department} | Level: ${session.target_level || session.level}`, 14, 28);
+      doc.text(`Date: ${new Date(session.created_at).toLocaleDateString()} | Generated: ${new Date().toLocaleString()}`, 14, 34);
 
       autoTable(doc, {
-        startY: 58,
-        head: [['S/N', 'Full Name', 'Matric Number', 'Time Signed', 'Status']],
-        body: attendees.map((a, i) => [
-          i + 1, 
-          a.users?.full_name || 'N/A', 
-          a.student_matric, 
-          new Date(a.signed_at).toLocaleTimeString(),
-          'Present'
+        startY: 40,
+        head: [['S/N', 'Full Name', 'Matric Number', 'Signature', 'Time']],
+        body: attendees.map((student, index) => [
+          index + 1,
+          student.users?.full_name || 'N/A',
+          student.student_matric,
+          '', // Signature cell placeholder
+          new Date(student.signed_at).toLocaleTimeString()
         ]),
+        didDrawCell: (data) => {
+          if (data.section === 'body' && data.column.index === 3) {
+            const student = attendees[data.row.index];
+            if (student.signature_data) {
+              try {
+                doc.addImage(
+                  student.signature_data, 
+                  'PNG', 
+                  data.cell.x + 2, 
+                  data.cell.y + 2, 
+                  15, 
+                  6
+                );
+              } catch (e) {
+                console.error("Error adding image to PDF", e);
+              }
+            }
+          }
+        },
+        columnStyles: {
+          3: { cellWidth: 25 },
+        },
+        styles: { 
+          minCellHeight: 12,
+          valign: 'middle'
+        },
         headStyles: { fillColor: [16, 185, 129] },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
       });
 
-      doc.save(`${session.course_code}_Attendance_${new Date(session.created_at).toLocaleDateString()}.pdf`);
+      doc.save(`${session.course_code}_Final_Report.pdf`);
     } else {
       // General Student List Report
       const currentHOC = filteredUsers.find(u => u.is_hoc === true);
