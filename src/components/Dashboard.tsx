@@ -260,7 +260,7 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
     
     if (session && attendees) {
       // Session Specific Report with Signatures
-      const specificDept = session.department; 
+      const deptLabel = session.department || "Not Specified"; 
       
       doc.setFontSize(16);
       doc.setTextColor(20, 20, 20);
@@ -268,8 +268,8 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
       
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
-      doc.text(`Department: ${specificDept}`, 14, 28);
-      doc.text(`Level: ${session.target_level || session.level} | Date: ${new Date(session.created_at).toLocaleDateString()}`, 14, 34);
+      doc.text(`Department: ${deptLabel} | Level: ${session.target_level || session.level}`, 14, 28);
+      doc.text(`Date: ${new Date(session.created_at).toLocaleDateString()} | Generated: ${new Date().toLocaleString()}`, 14, 34);
 
       autoTable(doc, {
         startY: 40,
