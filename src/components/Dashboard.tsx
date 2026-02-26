@@ -619,7 +619,7 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                               <strong>Dept:</strong> {s.department}
                             </p>
                             <p className="text-xs text-zinc-500">
-                              Level: {s.target_level || s.level}
+                              Level: {s.target_level}
                             </p>
                           </div>
                         </div>
