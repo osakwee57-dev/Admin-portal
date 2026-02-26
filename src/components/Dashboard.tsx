@@ -260,21 +260,23 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
     
     if (session && attendees) {
       // Session Specific Report with Signatures
+      const specificDept = session.department; 
+      
       doc.setFontSize(16);
       doc.setTextColor(20, 20, 20);
       doc.text(`OFFICIAL ATTENDANCE: ${session.course_code}`, 14, 20);
       
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
-      doc.text(`Department: ${session.department} | Level: ${session.target_level || session.level}`, 14, 28);
-      doc.text(`Date: ${new Date(session.created_at).toLocaleDateString()} | Generated: ${new Date().toLocaleString()}`, 14, 34);
+      doc.text(`Department: ${specificDept}`, 14, 28);
+      doc.text(`Level: ${session.target_level || session.level} | Date: ${new Date(session.created_at).toLocaleDateString()}`, 14, 34);
 
       autoTable(doc, {
         startY: 40,
         head: [['S/N', 'Full Name', 'Matric Number', 'Signature', 'Time']],
         body: attendees.map((student, index) => [
           index + 1,
-          student.users?.full_name || 'N/A',
+          student.users?.full_name || student.student_name || 'N/A',
           student.student_matric,
           '', // Signature cell placeholder
           new Date(student.signed_at).toLocaleTimeString()
@@ -612,9 +614,13 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                             <BookOpen className="w-4 h-4 text-emerald-500" />
                             <h4 className="text-lg font-bold text-zinc-100 tracking-tight">{s.course_code}</h4>
                           </div>
-                          <div className="flex items-center gap-2 text-zinc-500 text-sm">
-                            <MapPin className="w-3 h-3" />
-                            <span>{s.department} • {s.level}</span>
+                          <div className="space-y-0.5">
+                            <p className="text-xs font-medium text-emerald-500/80">
+                              <strong>Dept:</strong> {s.department}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Level: {s.target_level || s.level}
+                            </p>
                           </div>
                         </div>
                         <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest border border-emerald-500/20">
