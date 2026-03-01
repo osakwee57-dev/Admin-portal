@@ -25,6 +25,7 @@ import {
   FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 interface User {
   full_name: string;
@@ -45,6 +46,8 @@ interface Session {
   passcode?: string;
   is_active: boolean;
   created_at: string;
+  signedCount?: number;
+  totalCount?: number;
 }
 
 interface AttendanceLog {
@@ -61,6 +64,33 @@ interface AttendanceLog {
 interface DashboardProps {
   admin: User;
 }
+
+const AttendanceChart: React.FC<{ signedCount: number; totalCount: number }> = ({ signedCount, totalCount }) => {
+  const data = [
+    { name: 'Signed', value: signedCount },
+    { name: 'Unsigned', value: Math.max(0, totalCount - signedCount) }
+  ];
+  const COLORS = ['#10b981', '#ef4444']; // Emerald for signed, Red for absent
+
+  return (
+    <div className="w-full h-24">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie 
+            data={data} 
+            innerRadius={25} 
+            outerRadius={35} 
+            paddingAngle={2}
+            dataKey="value"
+            stroke="none"
+          >
+            {data.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index]} />)}
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
 
 const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
   const [users, setUsers] = useState<User[]>([]);
@@ -97,6 +127,24 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
+    // Fetch stats for live sessions
+    const liveWithStats = liveData ? await Promise.all(liveData.map(async (s) => {
+      // 1. Get Signed Students
+      const { count: signed } = await supabase
+        .from('attendance_logs')
+        .select('id', { count: 'exact' })
+        .eq('session_id', s.id);
+
+      // 2. Get Total Students in that Dept/Level
+      const { count: total } = await supabase
+        .from('users')
+        .select('id', { count: 'exact' })
+        .eq('department', s.department)
+        .eq('level', s.target_level || s.level);
+
+      return { ...s, signedCount: signed || 0, totalCount: total || 0 };
+    })) : [];
+
     // 2. Get Old Sessions (History)
     const { data: oldData } = await supabase
       .from('sessions')
@@ -111,7 +159,7 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
       .order('signed_at', { ascending: false });
 
     if (userData) setUsers(userData);
-    if (liveData) setSessions(liveData);
+    if (liveData) setSessions(liveWithStats);
     if (oldData) setHistory(oldData);
     if (logData) setLogs(logData);
     setLoading(false);
@@ -623,9 +671,33 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                             </p>
                           </div>
                         </div>
-                        <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest border border-emerald-500/20">
-                          Live
-                        </span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest border border-emerald-500/20">
+                            Live
+                          </span>
+                          <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">
+                            {s.signedCount} / {s.totalCount} Signed
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <AttendanceChart 
+                            signedCount={s.signedCount || 0} 
+                            totalCount={s.totalCount || 0} 
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2 text-[10px] uppercase tracking-widest font-bold">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <span className="text-zinc-400">Present: {s.signedCount}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-rose-500" />
+                            <span className="text-zinc-400">Absent: {Math.max(0, (s.totalCount || 0) - (s.signedCount || 0))}</span>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="pt-4 flex items-center justify-between border-t border-zinc-800">
