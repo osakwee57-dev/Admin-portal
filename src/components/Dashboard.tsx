@@ -68,26 +68,33 @@ interface DashboardProps {
 const AttendanceChart: React.FC<{ signedCount: number; totalCount: number }> = ({ signedCount, totalCount }) => {
   const data = [
     { name: 'Signed', value: signedCount },
-    { name: 'Unsigned', value: Math.max(0, totalCount - signedCount) }
+    { name: 'Remaining', value: Math.max(0, totalCount - signedCount) }
   ];
-  const COLORS = ['#10b981', '#ef4444']; // Emerald for signed, Red for absent
+  const COLORS = ['#22c55e', '#374151']; // Green for signed, Dark Gray for remaining
+  const percentage = totalCount > 0 ? Math.round((signedCount / totalCount) * 100) : 0;
 
   return (
-    <div className="w-full h-24">
+    <div className="w-full h-32 relative flex items-center justify-center">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie 
             data={data} 
-            innerRadius={25} 
-            outerRadius={35} 
-            paddingAngle={2}
+            innerRadius={40} 
+            outerRadius={55} 
+            paddingAngle={5}
             dataKey="value"
             stroke="none"
+            cx="50%"
+            cy="50%"
           >
             {data.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index]} />)}
           </Pie>
         </PieChart>
       </ResponsiveContainer>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <span className="text-lg font-bold text-zinc-100">{percentage}%</span>
+        <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-bold">Present</span>
+      </div>
     </div>
   );
 };
@@ -132,13 +139,13 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
       // 1. Get Signed Students
       const { count: signed } = await supabase
         .from('attendance_logs')
-        .select('id', { count: 'exact' })
+        .select('*', { count: 'exact', head: true })
         .eq('session_id', s.id);
 
       // 2. Get Total Students in that Dept/Level
       const { count: total } = await supabase
         .from('users')
-        .select('id', { count: 'exact' })
+        .select('*', { count: 'exact', head: true })
         .eq('department', s.department)
         .eq('level', s.target_level || s.level);
 
@@ -690,12 +697,12 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                         </div>
                         <div className="flex flex-col gap-2 text-[10px] uppercase tracking-widest font-bold">
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                            <span className="text-zinc-400">Present: {s.signedCount}</span>
+                            <div className="w-2 h-2 rounded-full bg-[#22c55e]" />
+                            <span className="text-zinc-400">Signed: {s.signedCount}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-rose-500" />
-                            <span className="text-zinc-400">Absent: {Math.max(0, (s.totalCount || 0) - (s.signedCount || 0))}</span>
+                            <div className="w-2 h-2 rounded-full bg-[#374151]" />
+                            <span className="text-zinc-400">Remaining: {Math.max(0, (s.totalCount || 0) - (s.signedCount || 0))}</span>
                           </div>
                         </div>
                       </div>
