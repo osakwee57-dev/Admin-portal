@@ -61,6 +61,14 @@ interface AttendanceLog {
   signature_data?: string;
 }
 
+interface PasswordRequest {
+  id: string;
+  student_matric: string;
+  requested_password: string;
+  status: 'pending' | 'resolved';
+  created_at: string;
+}
+
 interface DashboardProps {
   admin: User;
 }
@@ -107,7 +115,8 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
   const [sessionAttendees, setSessionAttendees] = useState<any[]>([]);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [selectedLog, setSelectedLog] = useState<AttendanceLog | null>(null);
-  const [view, setView] = useState<'users' | 'sessions' | 'history' | 'logs'>('users');
+  const [pendingRequests, setPendingRequests] = useState<PasswordRequest[]>([]);
+  const [view, setView] = useState<'users' | 'sessions' | 'history' | 'logs' | 'requests'>('users');
   const [filterDept, setFilterDept] = useState('All');
   const [filterLevel, setFilterLevel] = useState('All');
   const [histDept, setHistDept] = useState('All');
@@ -169,7 +178,51 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
     if (liveData) setSessions(liveWithStats);
     if (oldData) setHistory(oldData);
     if (logData) setLogs(logData);
+    
+    // 4. Get Password Reset Requests
+    const { data: requestData } = await supabase
+      .from('password_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    
+    if (requestData) setPendingRequests(requestData);
+    
     setLoading(false);
+  };
+
+  const fetchResetRequests = async () => {
+    const { data, error } = await supabase
+      .from('password_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) setPendingRequests(data);
+  };
+
+  const handleApproveReset = async (requestId: string, matric: string, newPassword: string) => {
+    // 1. Update the student's password
+    const { error: userError } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('matric_number', matric);
+
+    if (userError) {
+      alert("Failed to update user password.");
+      return;
+    }
+
+    // 2. Mark the request as resolved
+    const { error: requestError } = await supabase
+      .from('password_requests')
+      .update({ status: 'resolved' })
+      .eq('id', requestId);
+
+    if (!requestError) {
+      alert(`Password for ${matric} has been reset to: ${newPassword}`);
+      fetchResetRequests(); // Refresh the list
+    }
   };
 
   const handleDeleteUser = async (matric: string, name: string) => {
@@ -457,6 +510,20 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
           >
             <FileText className="w-5 h-5" />
             <span className="font-medium">Attendance Logs</span>
+          </button>
+          <button 
+            onClick={() => setView('requests')}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${view === 'requests' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'text-zinc-400 hover:bg-zinc-800 border border-transparent'}`}
+          >
+            <div className="flex items-center gap-3">
+              <Key className="w-5 h-5" />
+              <span className="font-medium">Reset Requests</span>
+            </div>
+            {pendingRequests.length > 0 && (
+              <span className="bg-amber-500 text-zinc-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                {pendingRequests.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -903,6 +970,59 @@ const Dashboard: React.FC<DashboardProps> = ({ admin }) => {
                   </div>
                 </div>
               )}
+            </motion.div>
+          ) : view === 'requests' ? (
+            <motion.div 
+              key="requests-view"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-3">
+                  <Key className="w-6 h-6 text-emerald-500" />
+                  Password Reset Requests
+                </h2>
+              </div>
+
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-zinc-800/50 border-bottom border-zinc-800">
+                        <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Matric Number</th>
+                        <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Requested Password</th>
+                        <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800">
+                      {pendingRequests.length > 0 ? (
+                        pendingRequests.map((req) => (
+                          <tr key={req.id} className="hover:bg-zinc-800/30 transition-colors">
+                            <td className="p-4 text-zinc-100 font-mono text-sm">{req.student_matric}</td>
+                            <td className="p-4 text-zinc-400 font-mono text-sm">
+                              <code className="bg-zinc-800 px-2 py-1 rounded text-emerald-400">{req.requested_password}</code>
+                            </td>
+                            <td className="p-4 text-right">
+                              <button 
+                                onClick={() => handleApproveReset(req.id, req.student_matric, req.requested_password)}
+                                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20"
+                              >
+                                Approve & Update
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="p-12 text-center text-zinc-500">No pending reset requests.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </motion.div>
           ) : (
             <motion.div 
